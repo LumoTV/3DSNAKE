@@ -11,6 +11,7 @@ int nTail;
 enum eDirection { STOP = 0, LEFT, RIGHT, UP, DOWN };
 eDirection dir;
 bool gameOver;
+bool gameStarted;
 
 void Setup() {
     gameOver = false;
@@ -22,6 +23,13 @@ void Setup() {
     fruitY = rand() % height;
     score = 0;
     nTail = 0;
+}
+
+void GenerateFruit() {
+    do {
+        fruitX = rand() % width;
+        fruitY = rand() % height;
+    } while (x == fruitX && y == fruitY);
 }
 
 void Draw() {
@@ -102,24 +110,90 @@ void Logic() {
 
     if (x == fruitX && y == fruitY) {
         score += 10;
-        fruitX = rand() % width;
-        fruitY = rand() % height;
+        GenerateFruit();
         nTail++;
     }
 }
 
-int main() {
-    consoleDemoInit();
-    Setup();
-    while (!gameOver) {
-        Draw();
-        Input();
-        Logic();
-        swiWaitForVBlank(); // Pause pour ralentir la vitesse
-        swiWaitForVBlank();
-        swiWaitForVBlank();
-        swiWaitForVBlank();
+void TitleScreen() {
+    consoleClear();
+    printf("\n\n\n");
+    printf("  Bienvenue au Snake!\n\n");
+    printf("  Appuyez sur A pour Jouer\n");
+    printf("  Appuyez sur START pour Quitter\n");
+    
+    while (1) {
+        scanKeys();
+        u16 keys = keysDown();
+
+        if (keys & KEY_A) {
+            gameStarted = true;
+            break;
+        }
+        if (keys & KEY_START) {
+            gameStarted = false;
+            break;
+        }
         swiWaitForVBlank();
     }
+}
+
+void DisplayImage() {
+    // Configure the graphics for the top screen
+    videoSetMode(MODE_5_2D);
+    vramSetBankA(VRAM_A_MAIN_BG);
+
+    int bg = bgInit(3, BgType_Text4bpp, BgSize_T_256x256, 0, 0);
+
+    // Afficher le texte "3DSNAKE" sur le fond
+    bgSetPriority(bg, 3);
+    bgSetScroll(bg, 0, 0);
+    iprintf("\x1b[10;10H3DSNAKE"); // Position (10, 10)
+
+    // Mettre à jour l'écran
+    swiWaitForVBlank();
+    bgUpdate();
+}
+
+
+int main() {
+    // Initialize consoles for both screens
+    consoleDemoInit();
+
+    // Display the image on the top screen
+    DisplayImage();
+
+    // Handle title screen on the bottom screen
+    gameStarted = false;
+    TitleScreen();
+
+    if (gameStarted) {
+        Setup();
+        int frameCounter = 0; // Frame counter to regulate game speed
+        while (!gameOver) {
+            Draw();
+            Input();
+            swiWaitForVBlank(); // Wait for VBlank to avoid graphical artifacts
+            frameCounter++;
+            if (frameCounter >= 5) { // Adjust this number to modify the speed
+                frameCounter = 0;
+                Logic(); // Execute additional logic after a certain number of frames
+            }
+        }
+    }
+
+    consoleClear();
+    printf("\n\n\n");
+    printf("  Merci d'avoir joué !\n");
+    printf("  Appuyez sur START pour quitter\n");
+    while (1) {
+        scanKeys();
+        u16 keys = keysDown();
+        if (keys & KEY_START) {
+            break;
+        }
+        swiWaitForVBlank();
+    }
+
     return 0;
 }
